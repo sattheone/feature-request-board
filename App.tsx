@@ -613,18 +613,20 @@ const App: React.FC = () => {
                   <span className="px-2 bg-white text-gray-500">Or</span>
                 </div>
               </div>
-              <Button
-                variant="primary"
-                onClick={() =>
-                  setCurrentUser({
-                    id: 'user_mock_1',
-                    name: 'John Doe',
-                    email: 'john@example.com',
-                  })
-                }
-              >
-                Continue as Guest
-              </Button>
+              <div className="flex justify-center">
+                <Button
+                  variant="primary"
+                  onClick={() =>
+                    setCurrentUser({
+                      id: 'user_mock_1',
+                      name: 'John Doe',
+                      email: 'john@example.com',
+                    })
+                  }
+                >
+                  Continue as Guest
+                </Button>
+              </div>
             </div>
           </div>
         </div>
