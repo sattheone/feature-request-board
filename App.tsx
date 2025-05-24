@@ -427,9 +427,6 @@ const getInitialData = (): FeatureRequest[] => {
   return allItems;
 };
 
-// Mock Google Client ID for testing
-const MOCK_GOOGLE_CLIENT_ID = '785523272540-7ni5rm8tob4ghk9462b9i4mqu16sj6hk.apps.googleusercontent.com';
-
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [requests, setRequests] = useState<FeatureRequest[]>([]);
@@ -599,7 +596,7 @@ const App: React.FC = () => {
 
   if (!currentUser) {
     return (
-      <GoogleOAuthProvider clientId={MOCK_GOOGLE_CLIENT_ID}>
+      <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
         <div className="min-h-screen bg-gray-50 flex items-center justify-center">
           <div className="bg-white p-8 rounded-lg shadow-lg">
             <h1 className="text-2xl font-bold text-center mb-6">Welcome to FeatureBoard</h1>
