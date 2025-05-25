@@ -1,20 +1,54 @@
 const express = require('express');
 const cors = require('cors');
-const { PrismaClient } = require('./generated/prisma');
+const { PrismaClient } = require('@prisma/client');
 const jwt = require('jsonwebtoken');
 
-const prisma = new PrismaClient();
+// Initialize Prisma with error handling
+const prisma = new PrismaClient({
+  log: ['query', 'info', 'warn', 'error'],
+});
+
+// Test database connection
+async function testConnection() {
+  try {
+    console.log('Attempting to connect to database...');
+    await prisma.$connect();
+    console.log('✅ Successfully connected to the database');
+    return true;
+  } catch (error) {
+    console.error('❌ Failed to connect to the database:', error);
+    return false;
+  }
+}
+
+// Initialize server
 const app = express();
-const PORT = process.env.PORT || 3000;
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+console.log('Express app initialized');
 
 app.use(cors());
 app.use(express.json());
+console.log('Middleware configured');
 
-// Logging middleware
+const PORT = process.env.PORT || 3000;
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+
+// Enhanced logging middleware
 app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  const start = Date.now();
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url} - ${res.statusCode} (${duration}ms)`);
+  });
+  
   next();
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Error:', err);
+  res.status(500).json({ error: 'Internal server error' });
 });
 
 // Authentication middleware
@@ -52,23 +86,39 @@ app.post('/api/auth/google', async (req, res) => {
   }
 });
 
-// Board endpoints
+// Board endpoints with enhanced error handling
 app.get('/api/boards', async (req, res) => {
-  const boards = await prisma.board.findMany({
-    include: { requests: true },
-  });
-  res.json(boards);
+  try {
+    console.log('Fetching boards...');
+    const boards = await prisma.board.findMany({
+      include: { requests: true },
+    });
+    console.log(`Found ${boards.length} boards`);
+    res.json(boards);
+  } catch (error) {
+    console.error('Error fetching boards:', error);
+    res.status(500).json({ error: 'Failed to fetch boards' });
+  }
 });
 
-app.post('/api/boards', authenticateToken, async (req, res) => {
-  if (req.user.role !== 'admin') {
-    return res.status(403).json({ error: 'Admin access required' });
+app.post('/api/boards', async (req, res) => {
+  try {
+    const { name, description } = req.body;
+    console.log('Creating board:', { name, description });
+    
+    if (!name) {
+      return res.status(400).json({ error: 'Board name is required' });
+    }
+
+    const board = await prisma.board.create({
+      data: { name, description },
+    });
+    console.log('Board created successfully:', board);
+    res.json(board);
+  } catch (error) {
+    console.error('Error creating board:', error);
+    res.status(500).json({ error: 'Failed to create board' });
   }
-  const { name, description } = req.body;
-  const board = await prisma.board.create({
-    data: { name, description },
-  });
-  res.json(board);
 });
 
 // Feature Request endpoints
@@ -270,16 +320,66 @@ async function initializeDatabase() {
   }
 }
 
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-  console.log('Available endpoints:');
-  console.log('- POST /api/auth/google');
-  console.log('- GET /api/boards');
-  console.log('- POST /api/boards');
-  console.log('- GET /api/requests');
-  console.log('- POST /api/requests');
-  console.log('- PATCH /api/requests/:id');
-  console.log('- POST /api/comments');
-  console.log('- POST /api/requests/:id/upvote');
-  console.log('- POST /api/changelogs');
-}); 
+// Start server function with retry logic
+async function startServer() {
+  let retries = 5;
+  
+  while (retries > 0) {
+    try {
+      const connected = await testConnection();
+      if (!connected) {
+        throw new Error('Database connection failed');
+      }
+
+      const server = app.listen(PORT, () => {
+        console.log(`Server running on http://localhost:${PORT}`);
+        console.log('Available endpoints:');
+        console.log('- POST /api/auth/google');
+        console.log('- GET /api/boards');
+        console.log('- POST /api/boards');
+        console.log('- GET /api/requests');
+        console.log('- POST /api/requests');
+        console.log('- PATCH /api/requests/:id');
+        console.log('- POST /api/comments');
+        console.log('- POST /api/requests/:id/upvote');
+        console.log('- POST /api/changelogs');
+      });
+
+      // Handle server errors
+      server.on('error', (error) => {
+        console.error('Server error:', error);
+        if (error.code === 'EADDRINUSE') {
+          console.log('Port is in use, retrying...');
+          retries--;
+          setTimeout(startServer, 1000);
+        }
+      });
+
+      return;
+    } catch (error) {
+      console.error(`Failed to start server (${retries} retries left):`, error);
+      retries--;
+      if (retries > 0) {
+        console.log('Retrying in 1 second...');
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+  }
+  
+  console.error('Failed to start server after all retries');
+  process.exit(1);
+}
+
+// Global error handlers
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+  // Don't exit the process
+});
+
+process.on('unhandledRejection', (error) => {
+  console.error('Unhandled Rejection:', error);
+  // Don't exit the process
+});
+
+// Start the server
+startServer(); 
