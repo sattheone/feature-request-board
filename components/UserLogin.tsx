@@ -50,6 +50,35 @@ const UserLogin: React.FC<UserLoginProps> = ({ onLogin }) => {
     }
   };
 
+  console.log('API URL:', process.env.REACT_APP_API_URL);
+
+  // Test login endpoint
+  fetch(`${process.env.REACT_APP_API_URL}/api/auth/login`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      email: 'testuser3@example.com',
+      password: 'password123'
+    })
+  })
+  .then(response => {
+    console.log('Response status:', response.status);
+    console.log('Response headers:', response.headers);
+    return response.text(); // Use text() instead of json() to see raw response
+  })
+  .then(data => {
+    console.log('Response data:', data);
+    try {
+      const jsonData = JSON.parse(data);
+      console.log('Parsed JSON:', jsonData);
+    } catch (e) {
+      console.log('Not valid JSON:', e);
+    }
+  })
+  .catch(error => console.error('Error:', error));
+
   return (
     <div className="max-w-md mx-auto mt-10 p-8 bg-white rounded-xl shadow-2xl">
       <div className="flex flex-col items-center mb-6">
