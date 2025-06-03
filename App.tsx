@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { GoogleOAuthProvider } from '@react-oauth/google';
 import { User, FeatureRequest, Comment, Changelog, Board, FeatureStatus, FeatureCategory } from './types';
 import { GLOBAL_DATA_KEY, MOCK_USER_ADMIN_ID, MOCK_USER_ADMIN_NAME, APP_BOARDS, DEFAULT_BOARD_ID } from './constants';
 import UserLogin from './components/UserLogin';
@@ -11,7 +10,6 @@ import { Button } from './components/common/Button';
 import { Modal } from './components/common/Modal';
 import { PlusCircleIcon, UserCircleIcon } from './components/common/Icon';
 import Header from './components/Header';
-import GoogleLogin from './components/GoogleLogin';
 import BoardNavigation from './components/BoardNavigation';
 
 // Helper to generate unique IDs
@@ -437,12 +435,6 @@ const App: React.FC = () => {
   const [isNewRequestModalOpen, setIsNewRequestModalOpen] = useState(false);
   const [isAdminDashboardOpen, setIsAdminDashboardOpen] = useState(false);
 
-  // Handle Google login
-  const handleGoogleLogin = (userData: User) => {
-    setUser(userData);
-    setIsAdmin(userData.role === 'admin');
-  };
-
   // Handle email/password login
   const handleEmailLogin = async (userData: { id: string; name: string; email: string; token: string; role: 'admin' | 'user' }) => {
     const newUser: User = {
@@ -623,25 +615,22 @@ const App: React.FC = () => {
 
   if (!user) {
     return (
-      <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-          <div className="max-w-md w-full p-8 bg-white rounded-xl shadow-2xl">
-            <h1 className="text-2xl font-bold text-center mb-6">Welcome to FeatureBoard</h1>
-            <div className="space-y-4">
-              <GoogleLogin onLogin={handleGoogleLogin} />
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-300"></div>
-                </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="px-2 bg-white text-gray-500">Or</span>
-                </div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="max-w-md w-full p-8 bg-white rounded-xl shadow-2xl">
+          <h1 className="text-2xl font-bold text-center mb-6">Welcome to FeatureBoard</h1>
+          <div className="space-y-4">
+            <UserLogin onLogin={handleEmailLogin} />
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-300"></div>
               </div>
-              <UserLogin onLogin={handleEmailLogin} />
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-white text-gray-500">Or</span>
+              </div>
             </div>
           </div>
         </div>
-      </GoogleOAuthProvider>
+      </div>
     );
   }
 
