@@ -1,25 +1,14 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const { PrismaClient } = require('@prisma/client');
+const { createClient } = require('@supabase/supabase-js');
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 
-// Initialize Prisma with error handling
-const prisma = new PrismaClient({
-  log: ['query', 'info', 'warn', 'error'],
-});
-
-// Test database connection
-async function testConnection() {
-  try {
-    console.log('Attempting to connect to database...');
-    await prisma.$connect();
-    console.log('✅ Successfully connected to the database');
-    return true;
-  } catch (error) {
-    console.error('❌ Failed to connect to the database:', error);
-    return false;
-  }
-}
+// Initialize Supabase client
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_ANON_KEY;
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Initialize server
 const app = express();
@@ -70,30 +59,144 @@ const authenticateToken = (req, res, next) => {
 };
 
 // Auth endpoints
-app.post('/api/auth/google', async (req, res) => {
-  const { email, name } = req.body;
+app.post('/api/auth/signup', async (req, res) => {
   try {
-    let user = await prisma.user.findUnique({ where: { email } });
-    if (!user) {
-      user = await prisma.user.create({
-        data: { email, name, role: 'user' },
-      });
+    const { email, name, password } = req.body;
+    console.log('Signup attempt for:', { email, name });
+
+    // Validate input
+    if (!email || !name || !password) {
+      return res.status(400).json({ error: 'All fields are required' });
     }
-    const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET);
-    res.json({ user, token });
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ error: 'Invalid email format' });
+    }
+
+    // Validate password strength
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters long' });
+    }
+
+    // Check if user already exists
+    const { data: existingUser, error: checkError } = await supabase
+      .from('users')
+      .select()
+      .eq('email', email)
+      .single();
+
+    if (checkError) {
+      console.error('Error checking existing user:', checkError);
+    }
+
+    if (existingUser) {
+      return res.status(400).json({ error: 'Email already registered' });
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+    console.log('Password hashed successfully');
+
+    // Create user
+    const { data: user, error: createError } = await supabase
+      .from('users')
+      .insert([
+        {
+          email,
+          name,
+          password: hashedPassword,
+          role: 'user'
+        }
+      ])
+      .select()
+      .single();
+
+    if (createError) {
+      console.error('Error creating user:', createError);
+      throw createError;
+    }
+
+    console.log('User created successfully:', { id: user.id, email: user.email });
+
+    // Generate token
+    const token = jwt.sign(
+      { id: user.id, email: user.email, role: user.role },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    // Return user data (excluding password) and token
+    const { password: _, ...userWithoutPassword } = user;
+    res.json({ user: userWithoutPassword, token });
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    console.error('Signup error details:', {
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint
+    });
+    res.status(500).json({ 
+      error: 'Failed to create user',
+      details: error.message 
+    });
   }
 });
 
-// Board endpoints with enhanced error handling
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // Validate input
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
+    }
+
+    // Find user
+    const { data: user, error } = await supabase
+      .from('users')
+      .select()
+      .eq('email', email)
+      .single();
+
+    if (error || !user) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    // Verify password
+    const validPassword = await bcrypt.compare(password, user.password);
+    if (!validPassword) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    // Generate token
+    const token = jwt.sign(
+      { id: user.id, email: user.email, role: user.role },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    // Return user data (excluding password) and token
+    const { password: _, ...userWithoutPassword } = user;
+    res.json({ user: userWithoutPassword, token });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ error: 'Failed to login' });
+  }
+});
+
+// Board endpoints
 app.get('/api/boards', async (req, res) => {
   try {
-    console.log('Fetching boards...');
-    const boards = await prisma.board.findMany({
-      include: { requests: true },
-    });
-    console.log(`Found ${boards.length} boards`);
+    const { data: boards, error } = await supabase
+      .from('boards')
+      .select(`
+        *,
+        requests (*)
+      `);
+
+    if (error) throw error;
     res.json(boards);
   } catch (error) {
     console.error('Error fetching boards:', error);
@@ -101,285 +204,251 @@ app.get('/api/boards', async (req, res) => {
   }
 });
 
-app.post('/api/boards', async (req, res) => {
+app.post('/api/boards', authenticateToken, async (req, res) => {
   try {
     const { name, description } = req.body;
-    console.log('Creating board:', { name, description });
+    console.log('Creating board with:', { name, description, userId: req.user.id });
     
     if (!name) {
       return res.status(400).json({ error: 'Board name is required' });
     }
 
-    const board = await prisma.board.create({
-      data: { name, description },
-    });
+    const { data: board, error } = await supabase
+      .from('boards')
+      .insert([
+        {
+          name,
+          description,
+          created_by: req.user.id
+        }
+      ])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating board:', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint
+      });
+      throw error;
+    }
+
     console.log('Board created successfully:', board);
     res.json(board);
   } catch (error) {
-    console.error('Error creating board:', error);
-    res.status(500).json({ error: 'Failed to create board' });
+    console.error('Board creation error details:', {
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint
+    });
+    res.status(500).json({ 
+      error: 'Failed to create board',
+      details: error.message 
+    });
   }
 });
 
 // Feature Request endpoints
 app.get('/api/requests', async (req, res) => {
-  const { boardId, status, category } = req.query;
-  const where = {};
-  if (boardId) where.boardId = boardId;
-  if (status) where.status = status;
-  if (category) where.category = category;
+  try {
+    const { boardId, status, category } = req.query;
+    let query = supabase
+      .from('feature_requests')
+      .select(`
+        *,
+        user:users (*),
+        comments (
+          *,
+          user:users (*)
+        ),
+        changelogs (*),
+        upvotes (*)
+      `)
+      .order('created_at', { ascending: false });
 
-  const requests = await prisma.featureRequest.findMany({
-    where,
-    include: {
-      user: true,
-      comments: { include: { user: true } },
-      changelogs: true,
-      upvotes: true,
-    },
-    orderBy: { createdAt: 'desc' },
-  });
-  res.json(requests);
+    if (boardId) query = query.eq('board_id', boardId);
+    if (status) query = query.eq('status', status);
+    if (category) query = query.eq('category', category);
+
+    const { data: requests, error } = await query;
+
+    if (error) throw error;
+    res.json(requests);
+  } catch (error) {
+    console.error('Error fetching requests:', error);
+    res.status(500).json({ error: 'Failed to fetch feature requests' });
+  }
 });
 
 app.post('/api/requests', authenticateToken, async (req, res) => {
-  const { title, description, category, boardId } = req.body;
-  const request = await prisma.featureRequest.create({
-    data: {
-      title,
-      description,
-      category,
-      boardId,
-      userId: req.user.id,
-      status: 'open',
-    },
-    include: {
-      user: true,
-      comments: true,
-      changelogs: true,
-      upvotes: true,
-    },
-  });
-  res.json(request);
+  try {
+    const { title, description, category, boardId } = req.body;
+    
+    if (!title || !boardId) {
+      return res.status(400).json({ error: 'Title and board ID are required' });
+    }
+
+    const { data: request, error } = await supabase
+      .from('feature_requests')
+      .insert([
+        {
+          title,
+          description,
+          category,
+          board_id: boardId,
+          user_id: req.user.id,
+          status: 'open'
+        }
+      ])
+      .select()
+      .single();
+
+    if (error) throw error;
+    res.json(request);
+  } catch (error) {
+    console.error('Error creating request:', error);
+    res.status(500).json({ error: 'Failed to create feature request' });
+  }
 });
 
 app.patch('/api/requests/:id', authenticateToken, async (req, res) => {
-  const { id } = req.params;
-  const { status, title, description, category } = req.body;
-  
-  const request = await prisma.featureRequest.findUnique({
-    where: { id },
-    include: { user: true },
-  });
+  try {
+    const { id } = req.params;
+    const { status, title, description, category } = req.body;
 
-  if (!request) {
-    return res.status(404).json({ error: 'Request not found' });
+    // Check if request exists and user has permission
+    const { data: existingRequest, error: fetchError } = await supabase
+      .from('feature_requests')
+      .select('*, user:users(*)')
+      .eq('id', id)
+      .single();
+
+    if (fetchError) throw fetchError;
+    if (!existingRequest) {
+      return res.status(404).json({ error: 'Request not found' });
+    }
+
+    if (req.user.role !== 'admin' && existingRequest.user_id !== req.user.id) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+
+    const { data: updatedRequest, error: updateError } = await supabase
+      .from('feature_requests')
+      .update({
+        status,
+        title,
+        description,
+        category
+      })
+      .eq('id', id)
+      .select(`
+        *,
+        user:users (*),
+        comments (
+          *,
+          user:users (*)
+        ),
+        changelogs (*),
+        upvotes (*)
+      `)
+      .single();
+
+    if (updateError) throw updateError;
+    res.json(updatedRequest);
+  } catch (error) {
+    console.error('Error updating request:', error);
+    res.status(500).json({ error: 'Failed to update feature request' });
   }
-
-  if (req.user.role !== 'admin' && request.userId !== req.user.id) {
-    return res.status(403).json({ error: 'Not authorized' });
-  }
-
-  const updated = await prisma.featureRequest.update({
-    where: { id },
-    data: { status, title, description, category },
-    include: {
-      user: true,
-      comments: { include: { user: true } },
-      changelogs: true,
-      upvotes: true,
-    },
-  });
-  res.json(updated);
 });
 
 // Comment endpoints
-app.post('/api/comments', authenticateToken, async (req, res) => {
-  const { text, requestId } = req.body;
-  const comment = await prisma.comment.create({
-    data: {
-      text,
-      requestId,
-      userId: req.user.id,
-    },
-    include: { user: true },
-  });
-  res.json(comment);
+app.post('/api/requests/:requestId/comments', authenticateToken, async (req, res) => {
+  try {
+    const { requestId } = req.params;
+    const { text } = req.body;
+
+    if (!text) {
+      return res.status(400).json({ error: 'Comment text is required' });
+    }
+
+    const { data: comment, error } = await supabase
+      .from('comments')
+      .insert([
+        {
+          text,
+          request_id: requestId,
+          user_id: req.user.id
+        }
+      ])
+      .select()
+      .single();
+
+    if (error) throw error;
+    res.json(comment);
+  } catch (error) {
+    console.error('Error creating comment:', error);
+    res.status(500).json({ error: 'Failed to create comment' });
+  }
 });
 
 // Upvote endpoints
-app.post('/api/requests/:id/upvote', authenticateToken, async (req, res) => {
-  const { id } = req.params;
+app.post('/api/requests/:requestId/upvotes', authenticateToken, async (req, res) => {
   try {
-    const upvote = await prisma.upvote.create({
-      data: {
-        userId: req.user.id,
-        requestId: id,
-      },
-    });
+    const { requestId } = req.params;
+
+    // Check if user already upvoted
+    const { data: existingUpvote } = await supabase
+      .from('upvotes')
+      .select()
+      .eq('request_id', requestId)
+      .eq('user_id', req.user.id)
+      .single();
+
+    if (existingUpvote) {
+      return res.status(400).json({ error: 'You have already upvoted this request' });
+    }
+
+    const { data: upvote, error } = await supabase
+      .from('upvotes')
+      .insert([
+        {
+          request_id: requestId,
+          user_id: req.user.id
+        }
+      ])
+      .select()
+      .single();
+
+    if (error) throw error;
     res.json(upvote);
   } catch (error) {
-    if (error.code === 'P2002') {
-      // Unique constraint violation - user already upvoted
-      await prisma.upvote.delete({
-        where: {
-          userId_requestId: {
-            userId: req.user.id,
-            requestId: id,
-          },
-        },
-      });
-      res.json({ message: 'Upvote removed' });
-    } else {
-      res.status(400).json({ error: error.message });
-    }
+    console.error('Error creating upvote:', error);
+    res.status(500).json({ error: 'Failed to create upvote' });
   }
 });
 
-// Changelog endpoints
-app.post('/api/changelogs', authenticateToken, async (req, res) => {
-  if (req.user.role !== 'admin') {
-    return res.status(403).json({ error: 'Admin access required' });
-  }
-  const { title, content, requestId } = req.body;
-  const changelog = await prisma.changelog.create({
-    data: { title, content, requestId },
-  });
-  res.json(changelog);
-});
-
-async function initializeDatabase() {
+app.delete('/api/requests/:requestId/upvotes', authenticateToken, async (req, res) => {
   try {
-    // Create tables
-    await prisma.exec(`
-      CREATE TABLE IF NOT EXISTS boards (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        description TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      );
+    const { requestId } = req.params;
 
-      CREATE TABLE IF NOT EXISTS users (
-        id TEXT PRIMARY KEY,
-        email TEXT UNIQUE NOT NULL,
-        name TEXT NOT NULL,
-        picture TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      );
+    const { error } = await supabase
+      .from('upvotes')
+      .delete()
+      .eq('request_id', requestId)
+      .eq('user_id', req.user.id);
 
-      CREATE TABLE IF NOT EXISTS requests (
-        id TEXT PRIMARY KEY,
-        board_id TEXT NOT NULL,
-        title TEXT NOT NULL,
-        description TEXT,
-        status TEXT DEFAULT 'open',
-        priority TEXT DEFAULT 'medium',
-        created_by TEXT NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (board_id) REFERENCES boards(id),
-        FOREIGN KEY (created_by) REFERENCES users(id)
-      );
-
-      CREATE TABLE IF NOT EXISTS comments (
-        id TEXT PRIMARY KEY,
-        request_id TEXT NOT NULL,
-        user_id TEXT NOT NULL,
-        content TEXT NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (request_id) REFERENCES requests(id),
-        FOREIGN KEY (user_id) REFERENCES users(id)
-      );
-
-      CREATE TABLE IF NOT EXISTS upvotes (
-        id TEXT PRIMARY KEY,
-        request_id TEXT NOT NULL,
-        user_id TEXT NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (request_id) REFERENCES requests(id),
-        FOREIGN KEY (user_id) REFERENCES users(id),
-        UNIQUE(request_id, user_id)
-      );
-
-      CREATE TABLE IF NOT EXISTS changelogs (
-        id TEXT PRIMARY KEY,
-        request_id TEXT NOT NULL,
-        user_id TEXT NOT NULL,
-        action TEXT NOT NULL,
-        details TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (request_id) REFERENCES requests(id),
-        FOREIGN KEY (user_id) REFERENCES users(id)
-      );
-    `);
-
-    console.log('Database initialized successfully');
+    if (error) throw error;
+    res.json({ message: 'Upvote removed successfully' });
   } catch (error) {
-    console.error('Error initializing database:', error);
-    throw error;
+    console.error('Error removing upvote:', error);
+    res.status(500).json({ error: 'Failed to remove upvote' });
   }
-}
-
-// Start server function with retry logic
-async function startServer() {
-  let retries = 5;
-  
-  while (retries > 0) {
-    try {
-      const connected = await testConnection();
-      if (!connected) {
-        throw new Error('Database connection failed');
-      }
-
-      const server = app.listen(PORT, () => {
-        console.log(`Server running on http://localhost:${PORT}`);
-        console.log('Available endpoints:');
-        console.log('- POST /api/auth/google');
-        console.log('- GET /api/boards');
-        console.log('- POST /api/boards');
-        console.log('- GET /api/requests');
-        console.log('- POST /api/requests');
-        console.log('- PATCH /api/requests/:id');
-        console.log('- POST /api/comments');
-        console.log('- POST /api/requests/:id/upvote');
-        console.log('- POST /api/changelogs');
-      });
-
-      // Handle server errors
-      server.on('error', (error) => {
-        console.error('Server error:', error);
-        if (error.code === 'EADDRINUSE') {
-          console.log('Port is in use, retrying...');
-          retries--;
-          setTimeout(startServer, 1000);
-        }
-      });
-
-      return;
-    } catch (error) {
-      console.error(`Failed to start server (${retries} retries left):`, error);
-      retries--;
-      if (retries > 0) {
-        console.log('Retrying in 1 second...');
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      }
-    }
-  }
-  
-  console.error('Failed to start server after all retries');
-  process.exit(1);
-}
-
-// Global error handlers
-process.on('uncaughtException', (error) => {
-  console.error('Uncaught Exception:', error);
-  // Don't exit the process
 });
 
-process.on('unhandledRejection', (error) => {
-  console.error('Unhandled Rejection:', error);
-  // Don't exit the process
-});
-
-// Start the server
-startServer(); 
+// Start server
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+}); 

@@ -17,6 +17,7 @@ model User {
   id        String    @id @default(uuid())
   email     String    @unique
   name      String
+  password  String    // Hashed password
   role      String    @default("user") // "admin" or "user"
   requests  FeatureRequest[]
   comments  Comment[]

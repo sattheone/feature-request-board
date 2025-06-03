@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { GoogleOAuthProvider } from '@react-oauth/google';
-import { FeatureRequest, User, Comment, FeatureStatus, Board, FeatureCategory, Changelog } from './types';
+import { User, FeatureRequest, Comment, Changelog, Board, FeatureStatus, FeatureCategory } from './types';
 import { GLOBAL_DATA_KEY, MOCK_USER_ADMIN_ID, MOCK_USER_ADMIN_NAME, APP_BOARDS, DEFAULT_BOARD_ID } from './constants';
 import UserLogin from './components/UserLogin';
 import FeatureRequestBoard from './components/FeatureRequestBoard';
@@ -28,14 +28,14 @@ const getInitialData = (): FeatureRequest[] => {
       const parsedData = JSON.parse(storedData) as FeatureRequest[];
       console.log('Parsed data:', parsedData);
       if (parsedData.length > 0) {
-        return parsedData.map(req => ({
-          ...req,
+      return parsedData.map(req => ({
+        ...req,
           boardId: req.boardId || DEFAULT_BOARD_ID,
           category: req.category || FeatureCategory.FEATURE,
           changelogs: req.changelogs || [],
-          createdAt: new Date(req.createdAt),
-          comments: req.comments.map(c => ({...c, createdAt: new Date(c.createdAt)}))
-        }));
+        createdAt: new Date(req.createdAt),
+        comments: req.comments.map(c => ({...c, createdAt: new Date(c.createdAt)}))
+      }));
       }
     } catch (error) {
       console.error("Failed to parse stored feature requests:", error);
@@ -312,7 +312,7 @@ const getInitialData = (): FeatureRequest[] => {
       changelogs: [],
       comments: [],
     },
-    {
+     {
       id: generateId(),
       boardId: APP_BOARDS[3].id,
       title: 'Improved Form Validation',
@@ -428,12 +428,42 @@ const getInitialData = (): FeatureRequest[] => {
 };
 
 const App: React.FC = () => {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [requests, setRequests] = useState<FeatureRequest[]>([]);
+  const [user, setUser] = useState<User | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [selectedBoardId, setSelectedBoardId] = useState(DEFAULT_BOARD_ID);
+  const [featureRequests, setFeatureRequests] = useState<FeatureRequest[]>(getInitialData());
   const [selectedRequest, setSelectedRequest] = useState<FeatureRequest | null>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isNewRequestModalOpen, setIsNewRequestModalOpen] = useState(false);
-  const [currentBoardId, setCurrentBoardId] = useState<string>(DEFAULT_BOARD_ID);
-  
+  const [isAdminDashboardOpen, setIsAdminDashboardOpen] = useState(false);
+
+  // Handle Google login
+  const handleGoogleLogin = (userData: User) => {
+    setUser(userData);
+    setIsAdmin(userData.role === 'admin');
+  };
+
+  // Handle email/password login
+  const handleEmailLogin = async (userData: { id: string; name: string; email: string; token: string; role: 'admin' | 'user' }) => {
+    const newUser: User = {
+      id: userData.id,
+      name: userData.name,
+      email: userData.email,
+      role: userData.role as 'admin' | 'user'
+    };
+    setUser(newUser);
+    setIsAdmin(userData.role === 'admin');
+    // Store token in localStorage
+    localStorage.setItem('auth_token', userData.token);
+  };
+
+  // Handle logout
+  const handleLogout = () => {
+    setUser(null);
+    setIsAdmin(false);
+    localStorage.removeItem('auth_token');
+  };
+
   const [boards] = useState<Board[]>(APP_BOARDS);
 
   // Approximate heights for sticky elements calculation
@@ -452,113 +482,110 @@ const App: React.FC = () => {
     // Load initial data
     const initialData = getInitialData();
     console.log('Setting initial data:', initialData);
-    setRequests(initialData);
+    setFeatureRequests(initialData);
 
-    // Mock user login
-    setCurrentUser({
+    // Mock user login with role
+    setUser({
       id: 'user_mock_1',
       name: 'John Doe',
       email: 'john@example.com',
+      role: 'user' as const
     });
   }, []);
 
   useEffect(() => {
-    console.log('Saving requests to localStorage:', requests);
-    localStorage.setItem(GLOBAL_DATA_KEY, JSON.stringify(requests));
-  }, [requests]);
-
-  const handleLogout = () => {
-    setCurrentUser(null);
-  };
+    console.log('Saving requests to localStorage:', featureRequests);
+    localStorage.setItem(GLOBAL_DATA_KEY, JSON.stringify(featureRequests));
+  }, [featureRequests]);
 
   const handleAddFeatureRequest = useCallback((title: string, description: string) => {
-    if (!currentUser) return;
+    if (!user) return;
     const newRequest: FeatureRequest = {
       id: generateId(),
-      boardId: currentBoardId, // Assign to current board
+      boardId: selectedBoardId, // Assign to current board
       title,
       description,
-      userId: currentUser.id,
-      userName: currentUser.name,
+      userId: user.id,
+      userName: user.name,
       createdAt: new Date(),
-      upvotes: [currentUser.id], 
+      upvotes: [user.id], 
       status: FeatureStatus.OPEN,
       category: FeatureCategory.FEATURE,
       changelogs: [],
       comments: [],
     };
-    setRequests((prevRequests) => [newRequest, ...prevRequests]);
+    setFeatureRequests((prevRequests) => [newRequest, ...prevRequests]);
     setIsNewRequestModalOpen(false);
-  }, [currentUser, currentBoardId]);
+  }, [user, selectedBoardId]);
 
   const handleUpvote = useCallback((requestId: string) => {
-    if (!currentUser) return;
-    setRequests((prevRequests) =>
+    if (!user) return;
+    setFeatureRequests((prevRequests) =>
       prevRequests.map((req) => {
         if (req.id === requestId) {
-          const alreadyUpvoted = req.upvotes.includes(currentUser.id);
+          const alreadyUpvoted = req.upvotes.includes(user.id);
           return {
             ...req,
             upvotes: alreadyUpvoted
-              ? req.upvotes.filter((userId) => userId !== currentUser.id)
-              : [...req.upvotes, currentUser.id],
+              ? req.upvotes.filter((userId) => userId !== user.id)
+              : [...req.upvotes, user.id],
           };
         }
         return req;
       })
     );
-  }, [currentUser]);
+  }, [user]);
 
   const handleAddComment = useCallback((requestId: string, text: string) => {
-    if (!currentUser) return;
+    if (!user) return;
     const newComment: Comment = {
       id: generateId(),
       requestId,
-      userId: currentUser.id,
-      userName: currentUser.name,
+      userId: user.id,
+      userName: user.name,
       text,
       createdAt: new Date(),
     };
-    setRequests((prevRequests) =>
+    setFeatureRequests((prevRequests) =>
       prevRequests.map((req) =>
         req.id === requestId ? { ...req, comments: [newComment, ...req.comments] } : req
       )
     );
     setSelectedRequest(prev => prev && prev.id === requestId ? {...prev, comments: [newComment, ...prev.comments]} : prev);
-  }, [currentUser]);
+  }, [user]);
 
   const handleChangeStatus = useCallback((requestId: string, status: FeatureStatus) => {
-     if (!currentUser) return;
-    const requestToChange = requests.find(req => req.id === requestId);
+     if (!user) return;
+    const requestToChange = featureRequests.find(req => req.id === requestId);
     if (!requestToChange) return;
     
-    const canChange = currentUser.id === MOCK_USER_ADMIN_ID || currentUser.id === requestToChange.userId;
+    const canChange = user.id === MOCK_USER_ADMIN_ID || user.id === requestToChange.userId;
     if (!canChange) {
         alert("You are not authorized to change the status of this request.");
         return;
     }
 
-    setRequests((prevRequests) =>
+    setFeatureRequests((prevRequests) =>
       prevRequests.map((req) =>
         req.id === requestId ? { ...req, status } : req
       )
     );
      setSelectedRequest(prev => prev && prev.id === requestId ? {...prev, status} : prev);
-  }, [currentUser, requests]);
+  }, [user, featureRequests]);
 
   const handleUpdateRequest = useCallback((requestId: string, updates: Partial<FeatureRequest>) => {
-    if (!currentUser || currentUser.id !== MOCK_USER_ADMIN_ID) return;
+    if (!user || user.id !== MOCK_USER_ADMIN_ID) return;
     
-    setRequests((prevRequests) =>
+    setFeatureRequests((prevRequests) =>
       prevRequests.map((req) =>
         req.id === requestId ? { ...req, ...updates } : req
       )
     );
     setSelectedRequest(prev => prev && prev.id === requestId ? {...prev, ...updates} : prev);
-  }, [currentUser]);
+  }, [user]);
 
   const handleAddChangelog = useCallback((requestId: string, changelog: Omit<Changelog, 'id' | 'createdAt'>) => {
-    if (!currentUser || currentUser.id !== MOCK_USER_ADMIN_ID) return;
+    if (!user || user.id !== MOCK_USER_ADMIN_ID) return;
     
     const newChangelog: Changelog = {
       id: generateId(),
@@ -566,13 +593,13 @@ const App: React.FC = () => {
       createdAt: new Date(),
     };
     
-    setRequests((prevRequests) =>
+    setFeatureRequests((prevRequests) =>
       prevRequests.map((req) =>
         req.id === requestId ? { ...req, changelogs: [newChangelog, ...req.changelogs] } : req
       )
     );
     setSelectedRequest(prev => prev && prev.id === requestId ? {...prev, changelogs: [newChangelog, ...prev.changelogs]} : prev);
-  }, [currentUser]);
+  }, [user]);
 
   const handleViewDetails = (request: FeatureRequest) => {
     setSelectedRequest(request);
@@ -583,25 +610,25 @@ const App: React.FC = () => {
   };
   
   const handleBoardChange = (boardId: string) => {
-    setCurrentBoardId(boardId);
+    setSelectedBoardId(boardId);
   };
-
+  
   const requestsForCurrentBoard = useMemo(() => {
-    return requests.filter(req => req.boardId === currentBoardId);
-  }, [requests, currentBoardId]);
+    return featureRequests.filter(req => req.boardId === selectedBoardId);
+  }, [featureRequests, selectedBoardId]);
 
   const currentBoardName = useMemo(() => {
-    return APP_BOARDS.find(b => b.id === currentBoardId)?.name || 'Board';
-  }, [currentBoardId]);
+    return APP_BOARDS.find(b => b.id === selectedBoardId)?.name || 'Board';
+  }, [selectedBoardId]);
 
-  if (!currentUser) {
+  if (!user) {
     return (
       <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
         <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-          <div className="bg-white p-8 rounded-lg shadow-lg">
+          <div className="max-w-md w-full p-8 bg-white rounded-xl shadow-2xl">
             <h1 className="text-2xl font-bold text-center mb-6">Welcome to FeatureBoard</h1>
             <div className="space-y-4">
-              <GoogleLogin onLogin={setCurrentUser} />
+              <GoogleLogin onLogin={handleGoogleLogin} />
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
                   <div className="w-full border-t border-gray-300"></div>
@@ -610,20 +637,7 @@ const App: React.FC = () => {
                   <span className="px-2 bg-white text-gray-500">Or</span>
                 </div>
               </div>
-              <div className="flex justify-center">
-                <Button
-                  variant="primary"
-                  onClick={() =>
-                    setCurrentUser({
-                      id: 'user_mock_1',
-                      name: 'John Doe',
-                      email: 'john@example.com',
-                    })
-                  }
-                >
-                  Continue as Guest
-                </Button>
-              </div>
+              <UserLogin onLogin={handleEmailLogin} />
             </div>
           </div>
         </div>
@@ -634,40 +648,40 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <Header 
-        currentUser={currentUser} 
+        currentUser={user} 
         onLogout={handleLogout} 
         onAddRequest={() => setIsNewRequestModalOpen(true)}
       />
       <BoardNavigation
         boards={APP_BOARDS}
-        currentBoardId={currentBoardId}
+        currentBoardId={selectedBoardId}
         onBoardChange={handleBoardChange}
       />
       <main className="container mx-auto px-4 py-8">
-        {currentUser?.id === MOCK_USER_ADMIN_ID ? (
+        {user?.id === MOCK_USER_ADMIN_ID ? (
           <AdminDashboard
             requests={requestsForCurrentBoard}
-            currentUser={currentUser}
+            currentUser={user}
             onUpdateRequest={handleUpdateRequest}
             onAddChangelog={handleAddChangelog}
           />
         ) : (
-          <FeatureRequestBoard
-            requests={requestsForCurrentBoard}
-            currentUser={currentUser}
-            onUpvote={handleUpvote}
-            onViewDetails={handleViewDetails}
+        <FeatureRequestBoard
+          requests={requestsForCurrentBoard}
+          currentUser={user}
+          onUpvote={handleUpvote}
+          onViewDetails={handleViewDetails}
             onAddComment={handleAddComment}
             onChangeStatus={handleChangeStatus}
             stickyFiltersTopOffset={80}
-            currentBoardName={currentBoardName}
+          currentBoardName={currentBoardName}
           />
         )}
         <FeatureDetailModal
           isOpen={!!selectedRequest}
           onClose={handleCloseDetailModal}
           featureRequest={selectedRequest}
-          currentUser={currentUser}
+          currentUser={user}
           onUpvote={handleUpvote}
           onAddComment={handleAddComment}
           onChangeStatus={handleChangeStatus}
@@ -684,7 +698,7 @@ const App: React.FC = () => {
           onCancel={() => setIsNewRequestModalOpen(false)}
         />
       </Modal>
-      <footer className="py-8 text-center text-gray-500 text-sm">
+       <footer className="py-8 text-center text-gray-500 text-sm">
         <p>&copy; {new Date().getFullYear()} FeatureBoard. All rights reserved.</p>
         <p>A React & Tailwind CSS Application.</p>
       </footer>

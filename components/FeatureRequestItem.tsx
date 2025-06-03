@@ -52,13 +52,13 @@ const FeatureRequestItem: React.FC<FeatureRequestItemProps> = ({
               ))}
             </select>
           ) : (
-            <span
-              className={`text-xs font-semibold px-3 py-1 rounded-full ${
-                STATUS_COLORS[request.status]
-              }`}
-            >
-              {request.status}
-            </span>
+          <span
+            className={`text-xs font-semibold px-3 py-1 rounded-full ${
+              STATUS_COLORS[request.status]
+            }`}
+          >
+            {request.status}
+          </span>
           )}
         </div>
         <p className="text-xs text-gray-500 mb-3">

@@ -23,7 +23,7 @@ const GoogleLogin: React.FC<GoogleLoginProps> = ({ onLogin }) => {
           id: decoded.sub,
           name: decoded.name,
           email: decoded.email,
-          role: 'user',
+          role: 'user' as const,
         };
         onLogin(user);
       } catch (error) {
@@ -32,7 +32,7 @@ const GoogleLogin: React.FC<GoogleLoginProps> = ({ onLogin }) => {
           id: 'google_mock_1',
           name: 'Google User',
           email: 'google.user@example.com',
-          role: 'user',
+          role: 'user' as const,
         };
         onLogin(mockUser);
       }
@@ -46,7 +46,7 @@ const GoogleLogin: React.FC<GoogleLoginProps> = ({ onLogin }) => {
       id: 'google_mock_1',
       name: 'Google User',
       email: 'google.user@example.com',
-      role: 'user',
+      role: 'user' as const,
     };
     onLogin(mockUser);
   };

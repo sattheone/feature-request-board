@@ -4,63 +4,98 @@ const API_URL = 'http://localhost:3000/api';
 
 async function testAPI() {
   try {
-    // 1. Create admin user
-    const adminResponse = await fetch(`${API_URL}/users`, {
+    // 1. Test Authentication
+    console.log('\n1. Testing Authentication...');
+    
+    // Signup
+    const signupResponse = await fetch(`${API_URL}/auth/signup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        email: 'admin@example.com',
-        name: 'Admin User',
-        role: 'admin'
+        email: 'test@example.com',
+        name: 'Test User',
+        password: 'testpassword123'
       })
     });
-    const admin = await adminResponse.json();
-    console.log('Created admin user:', admin);
+    const signupData = await signupResponse.json();
+    console.log('Signup response:', signupData);
 
-    // 2. Create feedback
-    const feedbackResponse = await fetch(`${API_URL}/feedback`, {
+    // Login
+    const loginResponse = await fetch(`${API_URL}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: 'test@example.com',
+        password: 'testpassword123'
+      })
+    });
+    const loginData = await loginResponse.json();
+    console.log('Login response:', loginData);
+
+    const token = loginData.token;
+
+    // 2. Test Boards
+    console.log('\n2. Testing Boards...');
+    
+    // Create board
+    const boardResponse = await fetch(`${API_URL}/boards`, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        name: 'Test Board',
+        description: 'A board for testing'
+      })
+    });
+    const board = await boardResponse.json();
+    console.log('Created board:', board);
+
+    // Get all boards
+    const boardsResponse = await fetch(`${API_URL}/boards`);
+    const boards = await boardsResponse.json();
+    console.log('All boards:', boards);
+
+    // 3. Test Feature Requests
+    console.log('\n3. Testing Feature Requests...');
+    
+    // Create feature request
+    const requestResponse = await fetch(`${API_URL}/requests`, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
       body: JSON.stringify({
         title: 'Add dark mode',
         description: 'Please add a dark mode option to the application',
         category: 'feature',
-        userId: admin.id
+        boardId: board.id
       })
     });
-    const feedback = await feedbackResponse.json();
-    console.log('Created feedback:', feedback);
+    const request = await requestResponse.json();
+    console.log('Created feature request:', request);
 
-    // 3. Add comment
-    const commentResponse = await fetch(`${API_URL}/comments`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+    // Get all feature requests
+    const requestsResponse = await fetch(`${API_URL}/requests`);
+    const requests = await requestsResponse.json();
+    console.log('All feature requests:', requests);
+
+    // Update feature request
+    const updateResponse = await fetch(`${API_URL}/requests/${request.id}`, {
+      method: 'PATCH',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
       body: JSON.stringify({
-        content: 'This would be a great addition!',
-        userId: admin.id,
-        feedbackId: feedback.id
+        status: 'in_progress',
+        title: 'Add dark mode (Updated)'
       })
     });
-    const comment = await commentResponse.json();
-    console.log('Created comment:', comment);
-
-    // 4. Add changelog
-    const changelogResponse = await fetch(`${API_URL}/changelogs`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        title: 'Dark mode implementation started',
-        content: 'We have started working on the dark mode feature',
-        feedbackId: feedback.id
-      })
-    });
-    const changelog = await changelogResponse.json();
-    console.log('Created changelog:', changelog);
-
-    // 5. Get all feedback with relations
-    const allFeedbackResponse = await fetch(`${API_URL}/feedback`);
-    const allFeedback = await allFeedbackResponse.json();
-    console.log('All feedback:', JSON.stringify(allFeedback, null, 2));
+    const updatedRequest = await updateResponse.json();
+    console.log('Updated feature request:', updatedRequest);
 
   } catch (error) {
     console.error('Error testing API:', error);
