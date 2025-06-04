@@ -17,12 +17,13 @@ const UserLogin: React.FC<UserLoginProps> = ({ onLogin }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    if (!process.env.REACT_APP_API_URL) {
-      console.error("Missing REACT_APP_API_URL! Check your environment variables.");
+    if (!process.env.VITE_API_URL) {
+      console.error("Missing VITE_API_URL! Check your environment variables.");
     }
 
     try {
-      const endpoint = `${process.env.REACT_APP_API_URL}${isLogin ? '/api/auth/login' : '/api/auth/signup'}`;
+      const endpoint = `${process.env.VITE_API_URL}${isLogin ? '/api/auth/login' : '/api/auth/signup'}`;
+
       const body = isLogin 
         ? { email, password }
         : { email, password, name };
