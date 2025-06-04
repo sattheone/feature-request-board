@@ -17,386 +17,8 @@ const generateId = (): string => Date.now().toString(36) + Math.random().toStrin
 
 // Initial mock data
 const getInitialData = (): FeatureRequest[] => {
-  // Feature Requests Board Items
-  const featureRequestsItems = [
-    {
-      id: generateId(),
-      boardId: APP_BOARDS[0].id,
-      title: 'Dark Mode Theme',
-      description: 'Implement a dark mode option for the entire application to reduce eye strain in low-light environments.',
-      userId: MOCK_USER_ADMIN_ID,
-      userName: MOCK_USER_ADMIN_NAME,
-      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2),
-      upvotes: [MOCK_USER_ADMIN_ID, 'user_mock_2', 'user_mock_3', 'user_mock_4'],
-      status: FeatureStatus.PLANNED,
-      category: FeatureCategory.FEATURE,
-      changelogs: [],
-      comments: [
-        { id: generateId(), requestId: '', userId: 'user_mock_2', userName: 'Bob', text: 'This would be amazing!', createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 1) },
-      ],
-    },
-    {
-      id: generateId(),
-      boardId: APP_BOARDS[0].id,
-      title: 'Export Data to CSV',
-      description: 'Allow users to export their feature request data, including comments and upvotes, to a CSV file for external analysis.',
-      userId: 'user_mock_3',
-      userName: 'Charlie',
-      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5),
-      upvotes: ['user_mock_3', 'user_mock_4'],
-      status: FeatureStatus.OPEN,
-      category: FeatureCategory.FEATURE,
-      changelogs: [],
-      comments: [],
-    },
-    {
-      id: generateId(),
-      boardId: APP_BOARDS[0].id,
-      title: 'Keyboard Shortcuts',
-      description: 'Add keyboard shortcuts for common actions to improve productivity.',
-      userId: 'user_mock_4',
-      userName: 'Diana',
-      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 1),
-      upvotes: [MOCK_USER_ADMIN_ID, 'user_mock_2'],
-      status: FeatureStatus.IN_PROGRESS,
-      category: FeatureCategory.FEATURE,
-      changelogs: [],
-      comments: [],
-    },
-    {
-      id: generateId(),
-      boardId: APP_BOARDS[0].id,
-      title: 'Bulk Actions',
-      description: 'Enable bulk selection and actions for multiple feature requests.',
-      userId: 'user_mock_2',
-      userName: 'Bob',
-      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3),
-      upvotes: ['user_mock_2', 'user_mock_3'],
-      status: FeatureStatus.OPEN,
-      category: FeatureCategory.FEATURE,
-      changelogs: [],
-      comments: [],
-    },
-    {
-      id: generateId(),
-      boardId: APP_BOARDS[0].id,
-      title: 'Advanced Search Filters',
-      description: 'Add more advanced search and filtering options for feature requests.',
-      userId: MOCK_USER_ADMIN_ID,
-      userName: MOCK_USER_ADMIN_NAME,
-      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 4),
-      upvotes: [MOCK_USER_ADMIN_ID, 'user_mock_4'],
-      status: FeatureStatus.COMPLETED,
-      category: FeatureCategory.FEATURE,
-      changelogs: [],
-      comments: [],
-    },
-  ];
-
-  // Integrations Board Items
-  const integrationsItems = [
-    {
-      id: generateId(),
-      boardId: APP_BOARDS[1].id,
-      title: 'Slack Integration for Notifications',
-      description: 'Allow users to receive notifications about their requests directly in Slack.',
-      userId: 'user_mock_3',
-      userName: 'Charlie',
-      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3),
-      upvotes: ['user_mock_3', MOCK_USER_ADMIN_ID, 'user_mock_2'],
-      status: FeatureStatus.OPEN,
-      category: FeatureCategory.INTEGRATION,
-      changelogs: [],
-      comments: [],
-    },
-    {
-      id: generateId(),
-      boardId: APP_BOARDS[1].id,
-      title: 'GitHub Integration',
-      description: 'Link feature requests to GitHub issues and track implementation progress.',
-      userId: 'user_mock_2',
-      userName: 'Bob',
-      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2),
-      upvotes: ['user_mock_2', 'user_mock_3', 'user_mock_4'],
-      status: FeatureStatus.PLANNED,
-      category: FeatureCategory.INTEGRATION,
-      changelogs: [],
-      comments: [],
-    },
-    {
-      id: generateId(),
-      boardId: APP_BOARDS[1].id,
-      title: 'Jira Integration',
-      description: 'Sync feature requests with Jira tickets for better project management.',
-      userId: MOCK_USER_ADMIN_ID,
-      userName: MOCK_USER_ADMIN_NAME,
-      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 1),
-      upvotes: [MOCK_USER_ADMIN_ID, 'user_mock_2'],
-      status: FeatureStatus.IN_PROGRESS,
-      category: FeatureCategory.INTEGRATION,
-      changelogs: [],
-      comments: [],
-    },
-    {
-      id: generateId(),
-      boardId: APP_BOARDS[1].id,
-      title: 'Microsoft Teams Integration',
-      description: 'Add support for Microsoft Teams notifications and updates.',
-      userId: 'user_mock_4',
-      userName: 'Diana',
-      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 4),
-      upvotes: ['user_mock_4'],
-      status: FeatureStatus.OPEN,
-      category: FeatureCategory.INTEGRATION,
-      changelogs: [],
-      comments: [],
-    },
-    {
-      id: generateId(),
-      boardId: APP_BOARDS[1].id,
-      title: 'Discord Integration',
-      description: 'Enable Discord webhook integration for real-time updates.',
-      userId: 'user_mock_3',
-      userName: 'Charlie',
-      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5),
-      upvotes: ['user_mock_3', 'user_mock_2'],
-      status: FeatureStatus.DECLINED,
-      category: FeatureCategory.INTEGRATION,
-      changelogs: [],
-      comments: [],
-    },
-  ];
-
-  // Design Suggestions Board Items
-  const designItems = [
-    {
-      id: generateId(),
-      boardId: APP_BOARDS[2].id,
-      title: 'Modern Card Design',
-      description: 'Update the feature request cards with a more modern and clean design.',
-      userId: 'user_mock_4',
-      userName: 'Diana',
-      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2),
-      upvotes: ['user_mock_4', MOCK_USER_ADMIN_ID],
-      status: FeatureStatus.IN_PROGRESS,
-      category: FeatureCategory.DESIGN,
-      changelogs: [],
-      comments: [],
-    },
-    {
-      id: generateId(),
-      boardId: APP_BOARDS[2].id,
-      title: 'Custom Color Themes',
-      description: 'Allow users to customize the color scheme of the application.',
-      userId: 'user_mock_2',
-      userName: 'Bob',
-      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3),
-      upvotes: ['user_mock_2', 'user_mock_3'],
-      status: FeatureStatus.OPEN,
-      category: FeatureCategory.DESIGN,
-      changelogs: [],
-      comments: [],
-    },
-    {
-      id: generateId(),
-      boardId: APP_BOARDS[2].id,
-      title: 'Improved Typography',
-      description: 'Enhance readability with better typography and font choices.',
-      userId: MOCK_USER_ADMIN_ID,
-      userName: MOCK_USER_ADMIN_NAME,
-      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 1),
-      upvotes: [MOCK_USER_ADMIN_ID, 'user_mock_4'],
-      status: FeatureStatus.COMPLETED,
-      category: FeatureCategory.DESIGN,
-      changelogs: [],
-      comments: [],
-    },
-    {
-      id: generateId(),
-      boardId: APP_BOARDS[2].id,
-      title: 'Animated Transitions',
-      description: 'Add smooth animations for state changes and interactions.',
-      userId: 'user_mock_3',
-      userName: 'Charlie',
-      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 4),
-      upvotes: ['user_mock_3'],
-      status: FeatureStatus.PLANNED,
-      category: FeatureCategory.DESIGN,
-      changelogs: [],
-      comments: [],
-    },
-    {
-      id: generateId(),
-      boardId: APP_BOARDS[2].id,
-      title: 'Custom Icons',
-      description: 'Replace generic icons with custom-designed ones.',
-      userId: 'user_mock_4',
-      userName: 'Diana',
-      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5),
-      upvotes: ['user_mock_4', 'user_mock_2'],
-      status: FeatureStatus.OPEN,
-      category: FeatureCategory.DESIGN,
-      changelogs: [],
-      comments: [],
-    },
-  ];
-
-  // UX Improvements Board Items
-  const uxItems = [
-    {
-      id: generateId(),
-      boardId: APP_BOARDS[3].id,
-      title: 'Improved Mobile Navigation',
-      description: 'Enhance the mobile navigation experience with a better menu system.',
-      userId: 'user_mock_3',
-      userName: 'Charlie',
-      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2),
-      upvotes: ['user_mock_3', 'user_mock_4'],
-      status: FeatureStatus.IN_PROGRESS,
-      category: FeatureCategory.UX,
-      changelogs: [],
-      comments: [],
-    },
-    {
-      id: generateId(),
-      boardId: APP_BOARDS[3].id,
-      title: 'Streamlined Onboarding',
-      description: 'Create a more intuitive onboarding experience for new users.',
-      userId: MOCK_USER_ADMIN_ID,
-      userName: MOCK_USER_ADMIN_NAME,
-      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3),
-      upvotes: [MOCK_USER_ADMIN_ID, 'user_mock_2'],
-      status: FeatureStatus.PLANNED,
-      category: FeatureCategory.UX,
-      changelogs: [],
-      comments: [],
-    },
-    {
-      id: generateId(),
-      boardId: APP_BOARDS[3].id,
-      title: 'Contextual Help',
-      description: 'Add tooltips and contextual help throughout the application.',
-      userId: 'user_mock_2',
-      userName: 'Bob',
-      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 1),
-      upvotes: ['user_mock_2', 'user_mock_3'],
-      status: FeatureStatus.OPEN,
-      category: FeatureCategory.UX,
-      changelogs: [],
-      comments: [],
-    },
-     {
-      id: generateId(),
-      boardId: APP_BOARDS[3].id,
-      title: 'Improved Form Validation',
-      description: 'Enhance form validation with better error messages and real-time feedback.',
-      userId: 'user_mock_4',
-      userName: 'Diana',
-      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 4),
-      upvotes: ['user_mock_4', MOCK_USER_ADMIN_ID],
-      status: FeatureStatus.COMPLETED,
-      category: FeatureCategory.UX,
-      changelogs: [],
-      comments: [],
-    },
-    {
-      id: generateId(),
-      boardId: APP_BOARDS[3].id,
-      title: 'Accessibility Improvements',
-      description: 'Enhance accessibility features for better screen reader support.',
-      userId: 'user_mock_3',
-      userName: 'Charlie',
-      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5),
-      upvotes: ['user_mock_3', 'user_mock_2'],
-      status: FeatureStatus.OPEN,
-      category: FeatureCategory.UX,
-      changelogs: [],
-      comments: [],
-    },
-  ];
-
-  // General Feedback Board Items
-  const feedbackItems = [
-    {
-      id: generateId(),
-      boardId: APP_BOARDS[4].id,
-      title: 'Performance Optimization',
-      description: 'The application feels slow when loading large lists of feature requests.',
-      userId: 'user_mock_2',
-      userName: 'Bob',
-      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2),
-      upvotes: ['user_mock_2', 'user_mock_3', 'user_mock_4'],
-      status: FeatureStatus.IN_PROGRESS,
-      category: FeatureCategory.FEEDBACK,
-      changelogs: [],
-      comments: [],
-    },
-    {
-      id: generateId(),
-      boardId: APP_BOARDS[4].id,
-      title: 'Better Documentation',
-      description: 'Need more comprehensive documentation for the API and features.',
-      userId: 'user_mock_3',
-      userName: 'Charlie',
-      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3),
-      upvotes: ['user_mock_3', MOCK_USER_ADMIN_ID],
-      status: FeatureStatus.PLANNED,
-      category: FeatureCategory.FEEDBACK,
-      changelogs: [],
-      comments: [],
-    },
-    {
-      id: generateId(),
-      boardId: APP_BOARDS[4].id,
-      title: 'More Customization Options',
-      description: 'Allow users to customize their dashboard and views.',
-      userId: 'user_mock_4',
-      userName: 'Diana',
-      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 1),
-      upvotes: ['user_mock_4', 'user_mock_2'],
-      status: FeatureStatus.OPEN,
-      category: FeatureCategory.FEEDBACK,
-      changelogs: [],
-      comments: [],
-    },
-    {
-      id: generateId(),
-      boardId: APP_BOARDS[4].id,
-      title: 'Better Error Handling',
-      description: 'Improve error messages and recovery options.',
-      userId: MOCK_USER_ADMIN_ID,
-      userName: MOCK_USER_ADMIN_NAME,
-      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 4),
-      upvotes: [MOCK_USER_ADMIN_ID, 'user_mock_3'],
-      status: FeatureStatus.COMPLETED,
-      category: FeatureCategory.FEEDBACK,
-      changelogs: [],
-      comments: [],
-    },
-    {
-      id: generateId(),
-      boardId: APP_BOARDS[4].id,
-      title: 'Enhanced Search',
-      description: 'The current search functionality could be more powerful.',
-      userId: 'user_mock_2',
-      userName: 'Bob',
-      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5),
-      upvotes: ['user_mock_2', 'user_mock_4'],
-      status: FeatureStatus.OPEN,
-      category: FeatureCategory.FEEDBACK,
-      changelogs: [],
-      comments: [],
-    },
-  ];
-
-  // Combine all items and map comments
-  const allItems = [...featureRequestsItems, ...integrationsItems, ...designItems, ...uxItems, ...feedbackItems]
-    .map(req => ({
-      ...req,
-      comments: req.comments.map(c => ({...c, requestId: req.id}))
-    }));
-  
-  return allItems;
+  // Return empty array instead of mock data
+  return [];
 };
 
 const App: React.FC = () => {
@@ -428,16 +50,6 @@ const App: React.FC = () => {
   };
 
   const [boards] = useState<Board[]>(APP_BOARDS);
-
-  useEffect(() => {
-    // Mock user login with role
-    setUser({
-      id: 'user_mock_1',
-      name: 'John Doe',
-      email: 'john@example.com',
-      role: 'user' as const
-    });
-  }, []);
 
   const handleAddFeatureRequest = useCallback((title: string, description: string) => {
     if (!user) return;
@@ -564,11 +176,25 @@ const App: React.FC = () => {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="max-w-md w-full p-8 bg-white rounded-xl shadow-2xl">
-          <h1 className="text-2xl font-bold text-center mb-6">Welcome to FeatureBoard</h1>
-          <div className="space-y-4">
-            <UserLogin onLogin={handleEmailLogin} />
+      <div className="min-h-screen bg-gray-50">
+        <Header 
+          currentUser={null} 
+          onLogout={() => {}} 
+          onAddRequest={() => {}}
+          showLoginButton={true}
+          onLoginClick={() => setUser({
+            id: 'user_mock_1',
+            name: 'John Doe',
+            email: 'john@example.com',
+            role: 'user'
+          })}
+        />
+        <div className="container mx-auto px-4 py-8">
+          <div className="max-w-md mx-auto bg-white rounded-xl shadow-2xl p-8">
+            <h1 className="text-2xl font-bold text-center mb-6">Welcome to FeatureBoard</h1>
+            <div className="space-y-4">
+              <UserLogin onLogin={handleEmailLogin} />
+            </div>
           </div>
         </div>
       </div>
@@ -581,6 +207,8 @@ const App: React.FC = () => {
         currentUser={user} 
         onLogout={handleLogout} 
         onAddRequest={() => setIsNewRequestModalOpen(true)}
+        showLoginButton={false}
+        onLoginClick={() => {}}
       />
       <BoardNavigation
         boards={APP_BOARDS}
