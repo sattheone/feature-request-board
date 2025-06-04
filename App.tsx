@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { User, FeatureRequest, Comment, Changelog, Board, FeatureStatus, FeatureCategory } from './types';
-import { GLOBAL_DATA_KEY, MOCK_USER_ADMIN_ID, MOCK_USER_ADMIN_NAME, APP_BOARDS, DEFAULT_BOARD_ID } from './constants';
+import { MOCK_USER_ADMIN_ID, MOCK_USER_ADMIN_NAME, APP_BOARDS, DEFAULT_BOARD_ID } from './constants';
 import UserLogin from './components/UserLogin';
 import FeatureRequestBoard from './components/FeatureRequestBoard';
 import NewFeatureRequestForm from './components/NewFeatureRequestForm';
@@ -17,31 +17,6 @@ const generateId = (): string => Date.now().toString(36) + Math.random().toStrin
 
 // Initial mock data
 const getInitialData = (): FeatureRequest[] => {
-  console.log('Getting initial data...');
-  const storedData = localStorage.getItem(GLOBAL_DATA_KEY);
-  console.log('Stored data:', storedData);
-  
-  if (storedData && storedData !== '[]') {
-    try {
-      const parsedData = JSON.parse(storedData) as FeatureRequest[];
-      console.log('Parsed data:', parsedData);
-      if (parsedData.length > 0) {
-      return parsedData.map(req => ({
-        ...req,
-          boardId: req.boardId || DEFAULT_BOARD_ID,
-          category: req.category || FeatureCategory.FEATURE,
-          changelogs: req.changelogs || [],
-        createdAt: new Date(req.createdAt),
-        comments: req.comments.map(c => ({...c, createdAt: new Date(c.createdAt)}))
-      }));
-      }
-    } catch (error) {
-      console.error("Failed to parse stored feature requests:", error);
-      localStorage.removeItem(GLOBAL_DATA_KEY);
-    }
-  }
-
-  console.log('No stored data or empty array, creating default items...');
   // Feature Requests Board Items
   const featureRequestsItems = [
     {
@@ -421,7 +396,6 @@ const getInitialData = (): FeatureRequest[] => {
       comments: req.comments.map(c => ({...c, requestId: req.id}))
     }));
   
-  console.log('Created default items:', allItems);
   return allItems;
 };
 
@@ -445,37 +419,17 @@ const App: React.FC = () => {
     };
     setUser(newUser);
     setIsAdmin(userData.role === 'admin');
-    // Store token in localStorage
-    localStorage.setItem('auth_token', userData.token);
   };
 
   // Handle logout
   const handleLogout = () => {
     setUser(null);
     setIsAdmin(false);
-    localStorage.removeItem('auth_token');
   };
 
   const [boards] = useState<Board[]>(APP_BOARDS);
 
-  // Approximate heights for sticky elements calculation
-  const HEADER_HEIGHT_CLASS = 'h-[68px]'; // Tailwind class for ~4.25rem (py-4 + content)
-  const BOARD_NAV_HEIGHT_CLASS = 'h-[52px]'; // Tailwind class for ~3.25rem (py-3 + content)
-  
-  // Dynamically generate top offset class for filters based on header and board nav heights
-  // For Tailwind JIT, these specific values like top-[120px] need to be present or whitelisted.
-  // A simpler approach is to ensure these heights are fixed and use fixed Tailwind classes like top-16, top-28.
-  // Let's use fixed values for simplicity of example. Header py-4 -> ~68px. Nav py-3 -> ~52px.
-  const STICKY_HEADER_TOP_OFFSET = 'top-[68px]'; // For board nav
-  const STICKY_FILTERS_TOP_OFFSET = 'top-[120px]'; // For filters in FeatureRequestBoard (68px + 52px)
-
   useEffect(() => {
-    console.log('App useEffect running...');
-    // Load initial data
-    const initialData = getInitialData();
-    console.log('Setting initial data:', initialData);
-    setFeatureRequests(initialData);
-
     // Mock user login with role
     setUser({
       id: 'user_mock_1',
@@ -485,16 +439,11 @@ const App: React.FC = () => {
     });
   }, []);
 
-  useEffect(() => {
-    console.log('Saving requests to localStorage:', featureRequests);
-    localStorage.setItem(GLOBAL_DATA_KEY, JSON.stringify(featureRequests));
-  }, [featureRequests]);
-
   const handleAddFeatureRequest = useCallback((title: string, description: string) => {
     if (!user) return;
     const newRequest: FeatureRequest = {
       id: generateId(),
-      boardId: selectedBoardId, // Assign to current board
+      boardId: selectedBoardId,
       title,
       description,
       userId: user.id,
@@ -547,14 +496,14 @@ const App: React.FC = () => {
   }, [user]);
 
   const handleChangeStatus = useCallback((requestId: string, status: FeatureStatus) => {
-     if (!user) return;
+    if (!user) return;
     const requestToChange = featureRequests.find(req => req.id === requestId);
     if (!requestToChange) return;
     
     const canChange = user.id === MOCK_USER_ADMIN_ID || user.id === requestToChange.userId;
     if (!canChange) {
-        alert("You are not authorized to change the status of this request.");
-        return;
+      alert("You are not authorized to change the status of this request.");
+      return;
     }
 
     setFeatureRequests((prevRequests) =>
@@ -562,7 +511,7 @@ const App: React.FC = () => {
         req.id === requestId ? { ...req, status } : req
       )
     );
-     setSelectedRequest(prev => prev && prev.id === requestId ? {...prev, status} : prev);
+    setSelectedRequest(prev => prev && prev.id === requestId ? {...prev, status} : prev);
   }, [user, featureRequests]);
 
   const handleUpdateRequest = useCallback((requestId: string, updates: Partial<FeatureRequest>) => {
@@ -620,14 +569,6 @@ const App: React.FC = () => {
           <h1 className="text-2xl font-bold text-center mb-6">Welcome to FeatureBoard</h1>
           <div className="space-y-4">
             <UserLogin onLogin={handleEmailLogin} />
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300"></div>
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">Or</span>
-              </div>
-            </div>
           </div>
         </div>
       </div>
@@ -655,15 +596,15 @@ const App: React.FC = () => {
             onAddChangelog={handleAddChangelog}
           />
         ) : (
-        <FeatureRequestBoard
-          requests={requestsForCurrentBoard}
-          currentUser={user}
-          onUpvote={handleUpvote}
-          onViewDetails={handleViewDetails}
+          <FeatureRequestBoard
+            requests={requestsForCurrentBoard}
+            currentUser={user}
+            onUpvote={handleUpvote}
+            onViewDetails={handleViewDetails}
             onAddComment={handleAddComment}
             onChangeStatus={handleChangeStatus}
             stickyFiltersTopOffset={80}
-          currentBoardName={currentBoardName}
+            currentBoardName={currentBoardName}
           />
         )}
         <FeatureDetailModal
@@ -687,7 +628,7 @@ const App: React.FC = () => {
           onCancel={() => setIsNewRequestModalOpen(false)}
         />
       </Modal>
-       <footer className="py-8 text-center text-gray-500 text-sm">
+      <footer className="py-8 text-center text-gray-500 text-sm">
         <p>&copy; {new Date().getFullYear()} FeatureBoard. All rights reserved.</p>
         <p>A React & Tailwind CSS Application.</p>
       </footer>
