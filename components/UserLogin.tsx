@@ -22,7 +22,7 @@ const UserLogin: React.FC<UserLoginProps> = ({ onLogin }) => {
     }
 
     try {
-      const endpoint = `${'https://feature-request-board-ruddy.vercel.app'}${isLogin ? '/api/auth/login' : '/api/auth/signup'}`;
+      const endpoint = `${process.env.REACT_APP_API_URL}${isLogin ? '/api/auth/login' : '/api/auth/signup'}`;
       const body = isLogin 
         ? { email, password }
         : { email, password, name };
