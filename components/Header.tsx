@@ -22,7 +22,10 @@ const Header: React.FC<HeaderProps> = ({
   return (
     <header className="bg-white shadow-md sticky top-0 z-30 h-16 flex items-center">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center w-full">
-        <h1 className="text-3xl font-bold text-primary">FeatureBoard</h1>
+        <div className="flex items-center space-x-3">
+          <img src="https://via.placeholder.com/40" alt="Logo" className="h-10 w-10 rounded" />
+          <h1 className="text-3xl font-bold text-primary">FeatureBoard</h1>
+        </div>
         <div className="flex items-center space-x-4">
           {currentUser ? (
             <>
@@ -33,9 +36,6 @@ const Header: React.FC<HeaderProps> = ({
                   <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">Admin</span>
                 )}
               </div>
-              <Button variant="ghost" onClick={onLogout} size="sm">
-                Logout
-              </Button>
               <Button
                 variant="primary"
                 onClick={onAddRequest}
@@ -43,8 +43,11 @@ const Header: React.FC<HeaderProps> = ({
               >
                 Add Request
               </Button>
+              <Button variant="ghost" onClick={onLogout} size="sm">
+                Logout
+              </Button>
             </>
-          ) : showLoginButton && (
+          ) : (
             <Button variant="primary" onClick={onLoginClick} size="sm">
               Login
             </Button>

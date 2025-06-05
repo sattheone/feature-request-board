@@ -30,6 +30,7 @@ const App: React.FC = () => {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isNewRequestModalOpen, setIsNewRequestModalOpen] = useState(false);
   const [isAdminDashboardOpen, setIsAdminDashboardOpen] = useState(false);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
   // Handle email/password login
   const handleEmailLogin = async (userData: { id: string; name: string; email: string; token: string; role: 'admin' | 'user' }) => {
@@ -178,25 +179,49 @@ const App: React.FC = () => {
     return (
       <div className="min-h-screen bg-gray-50">
         <Header 
-          currentUser={null} 
+          currentUser={null}
           onLogout={() => {}} 
-          onAddRequest={() => {}}
+          onAddRequest={() => {}} 
           showLoginButton={true}
-          onLoginClick={() => setUser({
-            id: 'user_mock_1',
-            name: 'John Doe',
-            email: 'john@example.com',
-            role: 'user'
-          })}
+          onLoginClick={() => setIsLoginModalOpen(true)}
         />
-        <div className="container mx-auto px-4 py-8">
-          <div className="max-w-md mx-auto bg-white rounded-xl shadow-2xl p-8">
-            <h1 className="text-2xl font-bold text-center mb-6">Welcome to FeatureBoard</h1>
-            <div className="space-y-4">
-              <UserLogin onLogin={handleEmailLogin} />
-            </div>
-          </div>
-        </div>
+        <BoardNavigation
+          boards={APP_BOARDS}
+          currentBoardId={selectedBoardId}
+          onBoardChange={handleBoardChange}
+        />
+        <main className="container mx-auto px-4 py-8">
+          <FeatureRequestBoard
+            requests={requestsForCurrentBoard}
+            currentUser={null}
+            onUpvote={() => {}}
+            onViewDetails={handleViewDetails}
+            onAddComment={() => {}}
+            onChangeStatus={() => {}}
+            stickyFiltersTopOffset={80}
+            currentBoardName={currentBoardName}
+          />
+          <FeatureDetailModal
+            isOpen={!!selectedRequest}
+            onClose={handleCloseDetailModal}
+            featureRequest={selectedRequest}
+            currentUser={null}
+            onUpvote={() => {}}
+            onAddComment={() => {}}
+            onChangeStatus={() => {}}
+          />
+        </main>
+        <Modal isOpen={isLoginModalOpen} onClose={() => setIsLoginModalOpen(false)} title="Login" size="md">
+          <UserLogin onLogin={(userData) => { 
+            setUser({
+              id: userData.id,
+              name: userData.name,
+              email: userData.email,
+              role: userData.role
+            }); 
+            setIsLoginModalOpen(false); 
+          }} />
+        </Modal>
       </div>
     );
   }
@@ -207,8 +232,8 @@ const App: React.FC = () => {
         currentUser={user} 
         onLogout={handleLogout} 
         onAddRequest={() => setIsNewRequestModalOpen(true)}
-        showLoginButton={false}
-        onLoginClick={() => {}}
+        showLoginButton={true}
+        onLoginClick={handleLogout}
       />
       <BoardNavigation
         boards={APP_BOARDS}
