@@ -12,6 +12,10 @@ const getAuthHeader = (): Record<string, string> => {
 
 export const api = {
   // Auth
+  setToken(token: string) {
+    localStorage.setItem('token', token);
+  },
+
   async login(email: string, name: string): Promise<ApiResponse<{ user: any; token: string }>> {
     try {
       const response = await fetch(`${API_URL}/auth/google`, {

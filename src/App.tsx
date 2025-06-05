@@ -20,8 +20,10 @@ function App() {
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
-    if (storedUser) {
+    const storedToken = localStorage.getItem('token');
+    if (storedUser && storedToken) {
       setUser(JSON.parse(storedUser));
+      api.setToken(storedToken);
     }
     loadBoards();
   }, []);
@@ -50,7 +52,9 @@ function App() {
   const handleLogin = async (email: string, name: string) => {
     const response = await api.login(email, name);
     if (response.data) {
-      setUser(response.data.user);
+      const { user, token } = response.data;
+      setUser(user);
+      api.setToken(token);
     }
   };
 
